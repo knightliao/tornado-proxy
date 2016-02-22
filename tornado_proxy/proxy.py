@@ -27,16 +27,18 @@
 
 import logging
 import os
-import sys
 import socket
+import sys
+from logging.config import dictConfig
 from urlparse import urlparse
 
+import tornado.httpclient
 import tornado.httpserver
+import tornado.httputil
 import tornado.ioloop
 import tornado.iostream
+import tornado.options
 import tornado.web
-import tornado.httpclient
-import tornado.httputil
 
 logger = logging.getLogger('tornado_proxy')
 
@@ -71,9 +73,9 @@ def fetch_request(url, callback, **kwargs):
 
 class ProxyHandler(tornado.web.RequestHandler):
     SUPPORTED_METHODS = ['GET', 'POST', 'CONNECT']
-    
+
     def compute_etag(self):
-        return None # disable tornado Etag
+        return None  # disable tornado Etag
 
     @tornado.web.asynchronous
     def get(self):
@@ -82,18 +84,18 @@ class ProxyHandler(tornado.web.RequestHandler):
 
         def handle_response(response):
             if (response.error and not
-                    isinstance(response.error, tornado.httpclient.HTTPError)):
+            isinstance(response.error, tornado.httpclient.HTTPError)):
                 self.set_status(500)
                 self.write('Internal server error:\n' + str(response.error))
             else:
                 self.set_status(response.code, response.reason)
-                self._headers = tornado.httputil.HTTPHeaders() # clear tornado default header
-                
+                self._headers = tornado.httputil.HTTPHeaders()  # clear tornado default header
+
                 for header, v in response.headers.get_all():
                     if header not in ('Content-Length', 'Transfer-Encoding', 'Content-Encoding', 'Connection'):
-                        self.add_header(header, v) # some header appear multiple times, eg 'Set-Cookie'
-                
-                if response.body:                   
+                        self.add_header(header, v)  # some header appear multiple times, eg 'Set-Cookie'
+
+                if response.body:
                     self.set_header('Content-Length', len(response.body))
                     self.write(response.body)
             self.finish()
@@ -103,7 +105,7 @@ class ProxyHandler(tornado.web.RequestHandler):
             body = None
         try:
             if 'Proxy-Connection' in self.request.headers:
-                del self.request.headers['Proxy-Connection'] 
+                del self.request.headers['Proxy-Connection']
             fetch_request(
                 self.request.uri, handle_response,
                 method=self.request.method, body=body,
@@ -195,10 +197,23 @@ def run_proxy(port, start_ioloop=True):
     if start_ioloop:
         ioloop.start()
 
+
 if __name__ == '__main__':
     port = 8888
     if len(sys.argv) > 1:
         port = int(sys.argv[1])
 
     print ("Starting HTTP proxy on port %d" % port)
+
+    logging_config = dict(
+        version=1,
+        loggers={
+            'tornado_proxy': {'level': logging.DEBUG}
+        }
+    )
+
+    tornado.options.parse_command_line()
+
+    dictConfig(logging_config)
+
     run_proxy(port)
