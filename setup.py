@@ -23,7 +23,7 @@ class TestCommand(Command):
 
 setup(
     name='tornado-proxy',
-    version='0.1',
+    version='0.1.1',
     description='Simple asynchronous HTTP proxy',
     url='http://senko.net/en/',
     author='Senko Rasic',
